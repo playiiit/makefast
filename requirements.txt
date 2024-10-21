@@ -7,6 +7,5 @@ pytest~=8.3.3
 pymongo~=4.9.2
 pydantic~=2.8.2
 python-dotenv~=1.0.1
-makefast~=0.1
 mysql-connector-python~=9.0.0
 starlette~=0.38.2

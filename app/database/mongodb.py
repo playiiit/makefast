@@ -11,7 +11,8 @@ def get_database():
     try:
         cluster = AsyncIOMotorClient(uri)
         db = cluster[os.getenv("DB_DATABASE")]
-        return db
+        yield db
+        db.client.close()
     except Exception as e:
         print(e)
 
