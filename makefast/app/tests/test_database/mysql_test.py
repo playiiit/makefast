@@ -1,5 +1,5 @@
 from dotenv import load_dotenv
-from app.database.mysql import mysql_database
+from makefast.database import mysql_database
 
 load_dotenv()
 

@@ -1,17 +1,25 @@
 from typing import List, Dict, Any
 from fastapi import HTTPException
 from mysql.connector import Error
-from app.database.mysql import mysql_database
 
 
 class MySQLBase:
     table_name: str = ""
     columns: List[str] = []
+    _database = None
+
+    @classmethod
+    def set_database(cls, database):
+        cls._database = database
+
+    @classmethod
+    def get_database(cls):
+        return cls._database
 
     @classmethod
     def get_connection(cls):
         try:
-            return mysql_database.get_database()
+            return cls.get_database()
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Error accessing mysql database: {str(e)}")
 

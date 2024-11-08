@@ -1,5 +1,5 @@
 import click
-from makefast.command import CreateRoute, CreateModel, CreateMigration, CreateScheme, CreateEnum
+from makefast.command import CreateRoute, CreateModel, CreateMigration, CreateScheme, CreateEnum, ProjectInit
 
 
 @click.group()
@@ -41,3 +41,8 @@ def create_scheme(name):
 @click.option('--type', '-t')
 def create_enum(name, type):
     CreateEnum.execute(name, type)
+
+
+@cli.command()
+def init():
+    ProjectInit.execute()

@@ -1,18 +1,28 @@
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Mapping
 from fastapi import HTTPException
 from bson import ObjectId
-from app.database.mongodb import mongodb_connection
+from motor.motor_asyncio import AsyncIOMotorDatabase
 
 
 class MongoDBBase:
     collection_name: str = ""
+    _database: AsyncIOMotorDatabase = None
+
+    @classmethod
+    def set_database(cls, database: AsyncIOMotorDatabase):
+        cls._database = database
+
+    @classmethod
+    def get_database(cls) -> AsyncIOMotorDatabase:
+        if cls._database is None:
+            raise HTTPException(status_code=500, detail="MongoDB connection not initialized")
+        return cls._database
 
     @classmethod
     def get_collection(cls):
-        if mongodb_connection is None:
-            raise HTTPException(status_code=500, detail="MongoDB connection error")
+        database = cls.get_database()
         try:
-            return mongodb_connection[cls.collection_name]
+            return database[cls.collection_name]
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Error accessing collection: {str(e)}")
 
@@ -23,7 +33,7 @@ class MongoDBBase:
         return {**kwargs, "_id": str(result.inserted_id)}
 
     @classmethod
-    async def find(cls, id: str) -> Dict[str, Any]:
+    async def find(cls, id: str) -> Mapping[str, Any]:
         collection = cls.get_collection()
         result = await collection.find_one({"_id": ObjectId(id)})
         if result is None:
@@ -41,7 +51,7 @@ class MongoDBBase:
         return results
 
     @classmethod
-    async def update(cls, id: str, **kwargs) -> Dict[str, Any]:
+    async def update(cls, id: str, **kwargs) -> Mapping[str, Any]:
         collection = cls.get_collection()
         result = await collection.update_one({"_id": ObjectId(id)}, {"$set": kwargs})
         if result.matched_count == 0:

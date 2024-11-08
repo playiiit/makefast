@@ -1,7 +1,17 @@
 import os
+import re
 
 
 def table_name_generator(word):
+    """
+    Generates a pluralized version of the given word based on English pluralization rules.
+
+    Parameters:
+        word (str): The singular word to be converted to its plural form.
+
+    Returns:
+        str: The plural form of the input word, accounting for irregular and regular pluralization rules.
+    """
     # Special cases
     irregular_nouns = {
         'child': 'children',
@@ -39,6 +49,16 @@ def table_name_generator(word):
 
 
 def update_init_file(file_path, statement):
+    """
+    Updates the specified file by adding a statement at the beginning if it does not already exist in the file.
+
+    Parameters:
+        file_path (str): The path to the file to be updated.
+        statement (str): The statement to be added at the beginning of the file.
+
+    Returns:
+        None
+    """
     if os.path.exists(file_path):
         with open(file_path, "r+") as f:
             content = f.read()
@@ -48,3 +68,57 @@ def update_init_file(file_path, statement):
     else:
         with open(file_path, "w") as f:
             f.write(statement)
+
+
+def generate_class_name(input_string):
+    """
+    Converts a user-provided string into a 'UserList' format.
+
+    Parameters:
+    input_string (str): The input string to be converted.
+
+    Returns:
+    str: The input string converted to 'UserList' format.
+    """
+    # Split the input by space, underscore, or dash and capitalize each part
+    words = re.split(r'[ _-]+', input_string)
+    # Capitalize the first letter of each word and join them
+    return ''.join(word.capitalize() for word in words)
+
+
+def convert_to_snake_case(input_string):
+    """
+    Converts a string to snake case.
+
+    Parameters:
+    input_string (str): The string to be converted.
+
+    Returns:
+    str: The string in snake case.
+    """
+    # Replace spaces with underscores
+    result = input_string.replace(" ", "_")
+
+    # Replace hyphens with underscores
+    result = result.replace("-", "_")
+
+    # Lowercase the entire string
+    result = result.lower()
+
+    # Remove any leading/trailing underscores
+    result = result.strip("_")
+
+    return result
+
+
+def convert_to_hyphen(input_str):
+    """
+    Converts a string with spaces or underscores to a hyphen-separated format.
+
+    Parameters:
+        input_str (str): The input string to be converted.
+
+    Returns:
+        str: The converted string with spaces and underscores replaced by hyphens.
+    """
+    return input_str.replace(" ", "-").replace("_", "-")

@@ -9,3 +9,5 @@ pydantic~=2.8.2
 python-dotenv~=1.0.1
 mysql-connector-python~=9.0.0
 starlette~=0.38.2
+wheel~=0.44.0
+twine~=5.1.1
