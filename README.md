@@ -35,11 +35,11 @@ Welcome to MakeFast, a FastAPI CLI library designed to streamline your developme
 
 To install MakeFast, simply run the following command in your terminal:
 ```shell
-pip install assets
+pip install makefast
 ```
 After the run this command to make the project template:
 ```shell
-assets init
+makefast init
 ```
 Finally, run the:
 ```shell
