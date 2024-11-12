@@ -4,7 +4,7 @@ with open("README.md", "r") as fh:
     long_description = fh.read()
 
 setup(
-    name='assets',
+    name='makefast',
     version='1.0.2',
     packages=find_packages(),
     include_package_data=True,
