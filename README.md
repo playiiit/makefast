@@ -1,5 +1,5 @@
 <div align="center">
-  <img height="90" src="https://raw.githubusercontent.com/playiiit/makefast/main/makefast/app/assets/makefast-logo-white-bg.png">
+  <img height="90" src="https://raw.githubusercontent.com/playiiit/makefast/refs/heads/main/makefast/app/assets/makefast-logo-white-bg.png">
   <h1 style="margin-top: 0px;">
     MakeFast - FastAPI CLI Manager
   </h1>
