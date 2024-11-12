@@ -1,8 +1,8 @@
 <div align="center">
   <img height="90" src="https://raw.githubusercontent.com/playiiit/makefast/main/makefast/app/assets/makefast-logo-white-bg.png">
-  <h2 style="margin-top: 0px;">
+  <h1 style="margin-top: 0px;">
     MakeFast - FastAPI CLI Manager
-  </h2>
+  </h1>
 </div>
 
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
