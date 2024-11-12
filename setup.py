@@ -4,12 +4,12 @@ with open("README.md", "r") as fh:
     long_description = fh.read()
 
 setup(
-    name='makefast',
-    version='1.0.1',
+    name='assets',
+    version='1.0.2',
     packages=find_packages(),
     include_package_data=True,
     package_data={
-        'makefast': ['app/**/*'],
+        'assets': ['app/**/*'],
     },
     install_requires=[
         'typer~=0.12.5',
@@ -25,7 +25,7 @@ setup(
     ],
     entry_points='''
         [console_scripts]
-        makefast=makefast.cli:cli
+        assets=assets.cli:cli
     ''',
     long_description=long_description,
     description="FastAPI CLI Library",
