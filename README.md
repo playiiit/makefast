@@ -1,4 +1,10 @@
-# MakeFast - FastAPI CLI Manager
+<div style="display: flex; justify-content: center; margin-top: 20px;">
+  <img width="200" src="https://raw.githubusercontent.com/playiiit/makefast/main/makefast/app/assets/makefast-logo.png">
+</div>
+<h2 style="text-align: center; margin-top: 0px;">
+  MakeFast - FastAPI CLI Manager
+</h2>
+
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
@@ -29,11 +35,11 @@ Welcome to MakeFast, a FastAPI CLI library designed to streamline your developme
 
 To install MakeFast, simply run the following command in your terminal:
 ```shell
-pip install makefast
+pip install assets
 ```
 After the run this command to make the project template:
 ```shell
-makefast init
+assets init
 ```
 Finally, run the:
 ```shell
