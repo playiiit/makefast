@@ -151,6 +151,7 @@ pydantic
 python-dotenv
 mysql-connector-python
 starlette
+makefast
 """
         req_file = destination / 'requirements.txt'
         with open(req_file, 'w') as f:

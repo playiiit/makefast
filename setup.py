@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setup(
     name='makefast',
-    version='1.0.4',
+    version='1.2.1',
     packages=find_packages(),
     include_package_data=True,
     package_data={
@@ -23,10 +23,11 @@ setup(
         'mysql-connector-python~=9.0.0',
         'starlette~=0.38.2',
     ],
-    entry_points='''
-        [console_scripts]
-        assets=assets.cli:cli
-    ''',
+    entry_points={
+        'console_scripts': [
+            'makefast=makefast.cli:cli',
+        ],
+    },
     long_description=long_description,
     description="FastAPI CLI Library",
     long_description_content_type="text/markdown"

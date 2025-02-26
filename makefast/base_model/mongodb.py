@@ -1,4 +1,4 @@
-from typing import List, Dict, Any, Mapping
+from typing import List, Dict, Any, Mapping, Optional
 from fastapi import HTTPException
 from bson import ObjectId
 from motor.motor_asyncio import AsyncIOMotorDatabase
@@ -33,11 +33,11 @@ class MongoDBBase:
         return {**kwargs, "_id": str(result.inserted_id)}
 
     @classmethod
-    async def find(cls, id: str) -> Mapping[str, Any]:
+    async def find(cls, data: Any) -> Dict[str, Any] | None:
         collection = cls.get_collection()
-        result = await collection.find_one({"_id": ObjectId(id)})
+        result = await collection.find_one(data)
         if result is None:
-            raise HTTPException(status_code=404, detail="Item not found")
+            return None
         result["_id"] = str(result["_id"])
         return result
 
@@ -51,17 +51,51 @@ class MongoDBBase:
         return results
 
     @classmethod
-    async def update(cls, id: str, **kwargs) -> Mapping[str, Any]:
+    async def get(
+            cls, query: Any, limit: Optional[int] = None, fields: Optional[List[str]] = None
+    ) -> List[Dict[str, Any]]:
         collection = cls.get_collection()
-        result = await collection.update_one({"_id": ObjectId(id)}, {"$set": kwargs})
-        if result.matched_count == 0:
-            raise HTTPException(status_code=404, detail="Item not found")
-        return await cls.find(id)
+
+        pipeline = [
+            {"$match": query},
+            {"$limit": limit} if limit else {},
+            {"$project": {field: 1 for field in fields} | {"_id": 1}} if fields else {},
+            {"$addFields": {"_id": {"$toString": "$_id"}}}
+        ]
+        pipeline = [stage for stage in pipeline if stage]
+
+        cursor = collection.aggregate(pipeline)
+        return await cursor.to_list(length=limit)
 
     @classmethod
-    async def delete(cls, id: str) -> Dict[str, bool]:
+    async def update(cls, id: str, data: dict) -> Dict[str, Any] | int:
+        collection = cls.get_collection()
+        result = await collection.update_one({"_id": ObjectId(id)}, {"$set": data})
+        if result.matched_count == 0:
+            return 0
+        return await cls.find({"_id": ObjectId(id)})
+
+    @classmethod
+    async def delete(cls, id: str) -> Dict[str, bool] | 0:
         collection = cls.get_collection()
         result = await collection.delete_one({"_id": ObjectId(id)})
         if result.deleted_count == 0:
-            raise HTTPException(status_code=404, detail="Item not found")
+            return 0
         return {"success": True}
+
+    @classmethod
+    async def delete_all(cls, query: Any) -> Dict[str, bool] | 0:
+        collection = cls.get_collection()
+        result = await collection.delete_many(query)
+        if result.deleted_count == 0:
+            return 0
+        return {"success": True}
+
+    @classmethod
+    async def aggregate(cls, pipeline: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        collection = cls.get_collection()
+        try:
+            cursor = collection.aggregate(pipeline)
+            return await cursor.to_list(length=None)
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Aggregation error: {str(e)}")

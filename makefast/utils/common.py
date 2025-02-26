@@ -88,7 +88,7 @@ def generate_class_name(input_string):
 
 def convert_to_snake_case(input_string):
     """
-    Converts a string to snake case.
+    Converts a string to snake case, handling camelCase, PascalCase, spaces, and hyphens.
 
     Parameters:
     input_string (str): The string to be converted.
@@ -96,16 +96,20 @@ def convert_to_snake_case(input_string):
     Returns:
     str: The string in snake case.
     """
-    # Replace spaces with underscores
-    result = input_string.replace(" ", "_")
+    # Add underscore before any uppercase letter
+    result = ""
+    for i, char in enumerate(input_string):
+        if char.isupper() and i > 0:
+            result += "_" + char.lower()
+        else:
+            result += char.lower()
 
-    # Replace hyphens with underscores
-    result = result.replace("-", "_")
+    # Replace spaces and hyphens with underscores
+    result = result.replace(" ", "_").replace("-", "_")
 
-    # Lowercase the entire string
-    result = result.lower()
-
-    # Remove any leading/trailing underscores
+    # Remove any consecutive underscores and trim
+    while "__" in result:
+        result = result.replace("__", "_")
     result = result.strip("_")
 
     return result
