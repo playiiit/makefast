@@ -1,6 +1,7 @@
 import click
-from makefast.command import CreateRoute, CreateModel, CreateMigration, CreateScheme, CreateEnum, ProjectInit
-
+import asyncio
+from click import Context
+from makefast.command import CreateRoute, CreateModel, CreateMigration, CreateSchema, CreateEnum, ProjectInit, ExecuteMigrations
 
 @click.group()
 def cli():
@@ -32,8 +33,8 @@ def create_migration(name):
 
 @cli.command()
 @click.argument('name')
-def create_scheme(name):
-    CreateScheme.execute(name)
+def create_schema(name):
+    CreateSchema.execute(name)
 
 
 @cli.command()
@@ -41,6 +42,13 @@ def create_scheme(name):
 @click.option('--type', '-t')
 def create_enum(name, type):
     CreateEnum.execute(name, type)
+
+
+@cli.command()
+@click.pass_context
+def migrate(ctx: Context):
+    migration = ExecuteMigrations()
+    asyncio.run(migration.run_migrations())
 
 
 @cli.command()
