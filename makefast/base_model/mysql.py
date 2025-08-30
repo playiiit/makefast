@@ -81,6 +81,8 @@ class QueryBuilder:
         self.limit_count = None
         self.offset_count = 0
         self._validate_model()
+        self.join_conditions = []
+        self.select_columns = []
 
     def _validate_model(self):
         """Validate model configuration"""
@@ -234,6 +236,11 @@ class QueryBuilder:
     def _build_query(self, base_query: str) -> tuple[str, List[Any]]:
         """Build the complete query with conditions"""
         query = base_query
+        
+        # Add JOINs after the FROM clause
+        if self.join_conditions:
+            join_clause = " " + " ".join(self.join_conditions)
+            query += join_clause
 
         if self.where_conditions:
             where_clause = " AND ".join(self.where_conditions)
@@ -253,7 +260,14 @@ class QueryBuilder:
     async def get(self) -> List[Dict[str, Any]]:
         """Execute the query and return results"""
         table_name = SecurityValidator.sanitize_identifier(self.model_class.table_name)
-        base_query = f"SELECT * FROM `{table_name}`"
+        
+        # Handle custom select columns
+        if self.select_columns:
+            select_clause = ", ".join(self.select_columns)
+        else:
+            select_clause = "*"
+        
+        base_query = f"SELECT {select_clause} FROM `{table_name}`"
         query, params = self._build_query(base_query)
 
         with self.model_class.get_connection() as connection:
@@ -268,9 +282,35 @@ class QueryBuilder:
 
     async def first(self) -> Optional[Dict[str, Any]]:
         """Get the first result"""
+        table_name = SecurityValidator.sanitize_identifier(self.model_class.table_name)
+        
+        # Handle custom select columns
+        if self.select_columns:
+            select_clause = ", ".join(self.select_columns)
+        else:
+            select_clause = "*"
+        
+        base_query = f"SELECT {select_clause} FROM `{table_name}`"
+        
+        # Temporarily set limit to 1 for first()
+        original_limit = self.limit_count
         self.limit_count = 1
-        results = await self.get()
-        return results[0] if results else None
+        
+        query, params = self._build_query(base_query)
+        
+        # Restore original limit
+        self.limit_count = original_limit
+
+        with self.model_class.get_connection() as connection:
+            cursor = connection.cursor(dictionary=True)
+            try:
+                cursor.execute(query, params)
+                return cursor.fetchone()
+            except Error as e:
+                raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+            finally:
+                cursor.close()
+
 
     async def first_or_fail(self) -> Dict[str, Any]:
         """Get the first result or raise exception"""
@@ -356,6 +396,61 @@ class QueryBuilder:
                 raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
             finally:
                 cursor.close()
+
+    def select(self, *columns):
+        """Select specific columns"""
+        for column in columns:
+            # Handle table.column format
+            if '.' in column:
+                table, col = column.split('.', 1)
+                table = SecurityValidator.sanitize_identifier(table)
+                col = SecurityValidator.sanitize_identifier(col)
+                self.select_columns.append(f"`{table}`.`{col}`")
+            else:
+                col = SecurityValidator.sanitize_identifier(column)
+                self.select_columns.append(f"`{col}`")
+        return self
+
+    def join(self, table: str, first_column: str, operator: str = "=", second_column: str = None):
+        """Add INNER JOIN"""
+        return self._add_join("INNER JOIN", table, first_column, operator, second_column)
+
+    def left_join(self, table: str, first_column: str, operator: str = "=", second_column: str = None):
+        """Add LEFT JOIN"""
+        return self._add_join("LEFT JOIN", table, first_column, operator, second_column)
+
+    def right_join(self, table: str, first_column: str, operator: str = "=", second_column: str = None):
+        """Add RIGHT JOIN"""
+        return self._add_join("RIGHT JOIN", table, first_column, operator, second_column)
+
+    def _add_join(self, join_type: str, table: str, first_column: str, operator: str, second_column: str):
+        """Internal method to add JOIN conditions"""
+        # Handle case where operator is actually the second column
+        if second_column is None:
+            second_column = operator
+            operator = "="
+        
+        # Validate inputs
+        table = SecurityValidator.sanitize_identifier(table)
+        operator = SecurityValidator.sanitize_operator(operator)
+        
+        # Handle table.column format for both columns
+        def format_column(col):
+            if '.' in col:
+                tbl, column = col.split('.', 1)
+                tbl = SecurityValidator.sanitize_identifier(tbl)
+                column = SecurityValidator.sanitize_identifier(column)
+                return f"`{tbl}`.`{column}`"
+            else:
+                column = SecurityValidator.sanitize_identifier(col)
+                return f"`{column}`"
+        
+        first_col = format_column(first_column)
+        second_col = format_column(second_column)
+        
+        join_condition = f"{join_type} `{table}` ON {first_col} {operator} {second_col}"
+        self.join_conditions.append(join_condition)
+        return self
 
 
 class MySQLBase:
@@ -922,3 +1017,18 @@ class MySQLBase:
                 raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
             finally:
                 cursor.close()
+
+    @classmethod
+    def join(cls, table: str, first_column: str, operator: str = "=", second_column: str = None):
+        """Start a query with INNER JOIN"""
+        return cls.query().join(table, first_column, operator, second_column)
+
+    @classmethod
+    def left_join(cls, table: str, first_column: str, operator: str = "=", second_column: str = None):
+        """Start a query with LEFT JOIN"""
+        return cls.query().left_join(table, first_column, operator, second_column)
+
+    @classmethod
+    def right_join(cls, table: str, first_column: str, operator: str = "=", second_column: str = None):
+        """Start a query with RIGHT JOIN"""
+        return cls.query().right_join(table, first_column, operator, second_column)
