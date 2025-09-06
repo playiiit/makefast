@@ -97,6 +97,13 @@ class QueryBuilder:
 
     def _validate_column(self, column: str):
         """Validate column name against model's allowed columns"""
+        # Handle table.column format
+        if '.' in column:
+            table, col = column.split('.', 1)
+            table = SecurityValidator.sanitize_identifier(table)
+            col = SecurityValidator.sanitize_identifier(col)
+            return f"{table}.{col}"  # Return without backticks for internal use
+        
         # Sanitize the column name
         column = SecurityValidator.sanitize_identifier(column)
 
@@ -117,11 +124,17 @@ class QueryBuilder:
             operator = "="
 
         # Validate inputs
-        column = self._validate_column(column)
+        validated_column = self._validate_column(column)
         operator = SecurityValidator.sanitize_operator(operator)
 
-        # Use backticks for column names to prevent SQL injection
-        self.where_conditions.append(f"`{column}` {operator} %s")
+        # Format column with backticks (handle table.column format)
+        if '.' in validated_column:
+            table, col = validated_column.split('.', 1)
+            formatted_column = f"`{table}`.`{col}`"
+        else:
+            formatted_column = f"`{validated_column}`"
+
+        self.where_conditions.append(f"{formatted_column} {operator} %s")
         self.where_params.append(value)
         return self
 
@@ -410,6 +423,47 @@ class QueryBuilder:
                 col = SecurityValidator.sanitize_identifier(column)
                 self.select_columns.append(f"`{col}`")
         return self
+
+    def select_raw(self, *columns_with_aliases):
+        """Select columns with explicit aliases to avoid conflicts"""
+        for column_alias in columns_with_aliases:
+            if ' as ' in column_alias.lower():
+                # Split on 'as' keyword
+                parts = column_alias.lower().split(' as ')
+                if len(parts) == 2:
+                    column_part = column_alias[:column_alias.lower().find(' as ')].strip()
+                    alias_part = column_alias[column_alias.lower().find(' as ') + 4:].strip()
+                    
+                    formatted_col = self._format_column_with_alias(column_part, alias_part)
+                    self.select_columns.append(formatted_col)
+                else:
+                    # Fallback to regular column
+                    col = SecurityValidator.sanitize_identifier(column_alias)
+                    self.select_columns.append(f"`{col}`")
+            else:
+                # No alias, treat as regular column
+                if '.' in column_alias:
+                    table, col = column_alias.split('.', 1)
+                    table = SecurityValidator.sanitize_identifier(table)
+                    col = SecurityValidator.sanitize_identifier(col)
+                    self.select_columns.append(f"`{table}`.`{col}`")
+                else:
+                    col = SecurityValidator.sanitize_identifier(column_alias)
+                    self.select_columns.append(f"`{col}`")
+        return self
+
+    def _format_column_with_alias(self, column: str, alias: str) -> str:
+        """Format column with alias"""
+        alias = SecurityValidator.sanitize_identifier(alias)
+        
+        if '.' in column:
+            table, col = column.split('.', 1)
+            table = SecurityValidator.sanitize_identifier(table)
+            col = SecurityValidator.sanitize_identifier(col)
+            return f"`{table}`.`{col}` AS `{alias}`"
+        else:
+            col = SecurityValidator.sanitize_identifier(column)
+            return f"`{col}` AS `{alias}`"
 
     def join(self, table: str, first_column: str, operator: str = "=", second_column: str = None):
         """Add INNER JOIN"""

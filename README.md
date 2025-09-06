@@ -1,5 +1,5 @@
 <div align="center">
-  <img height="90" src="https://raw.githubusercontent.com/playiiit/makefast/refs/heads/main/makefast/app/assets/makefast-logo-white-bg.png">
+  <img height="90" src="https://://raw.githubusercontent.com/playiiit/makefast/refs/heads/main/makefast/app/assets/makefast-logo-white-bg.png">
   <h1 style="margin-top: 0px;">
     MakeFast - FastAPI CLI Manager
   </h1>
@@ -28,6 +28,10 @@ Welcome to MakeFast, a FastAPI CLI library designed to streamline your developme
     - [Find one](#find-one)
     - [Find all](#find-all)
     - [Delete](#delete)
+  - [Advanced Query Builder](#advanced-query-builder)
+  - [Aggregations](#aggregations)
+  - [Bulk Operations](#bulk-operations)
+  - [Safe Raw Queries](#safe-raw-queries)
 - [Contributing](#contributing)
 - [License](#license)
 
@@ -109,7 +113,6 @@ MongoDBDatabaseInit.init(app)
 Makefast offers default functions for CRUD operations. Before using these, you need to create a model that corresponds to the MySQL table or MongoDB collection.
 
 #### Create
-To create a new record, use the Model.create method, passing in the desired attributes. This method is asynchronous and returns a response that typically contains information about the newly created record.
 ```py
 from app.models import User
 
@@ -119,36 +122,124 @@ create_response = await User.create(**{
     "password": "test123",
 })
 ```
-#### Update
-To update an existing record, specify the ID and the fields to modify using Model.update. This example updates the name field of the user with ID 45.
-```py
-from app.models import User
 
+#### Update
+```py
 await User.update(45, **{
     "name": "New name"
 })
 ```
-#### Find one
-To retrieve a single record, use Model.find. This function typically returns the first record matching the criteria or, if no criteria are specified, an arbitrary record.
-```py
-from app.models import User
 
+#### Find one
+```py
 await User.find(45)
 ```
-#### Find all
-To retrieve all the records, use the Model.all method, which returns a collection of records.
-```py
-from app.models import User
 
+#### Find all
+```py
 await User.all()
 ```
-#### Delete
-To delete a record by their ID, use the Model.delete method. Here, we remove the user with an ID of 45.
-```py
-from app.models import User
 
+#### Delete
+```py
 await User.delete(45)
 ```
+
+---
+
+## Advanced Query Builder
+
+MakeFast’s MySQL integration includes a powerful **QueryBuilder** for advanced queries with validation and safety.
+
+#### Filtering
+```py
+# WHERE username = 'john'
+users = await User.query().where("username", "john").get()
+
+# WHERE age > 18 AND status = 'active'
+users = await User.query().where("age", ">", 18).where("status", "active").get()
+```
+
+#### Joins
+```py
+# INNER JOIN
+results = await User.query().join("profiles", "users.id", "profiles.user_id").get()
+
+# LEFT JOIN
+results = await User.query().left_join("orders", "users.id", "orders.user_id").get()
+```
+
+#### Select Specific Columns
+```py
+users = await User.query().select("id", "username", "email").get()
+
+# With alias
+users = await User.query().select_raw("users.id as user_id", "profiles.bio as profile_bio").get()
+```
+
+#### Ordering, Limit & Offset
+```py
+users = await User.query().order_by("created_at", "DESC").limit(10).offset(20).get()
+```
+
+#### First / First Or Fail
+```py
+user = await User.query().where("username", "john").first()
+user = await User.query().where("username", "john").first_or_fail()
+```
+
+#### Pagination
+```py
+users_page = await User.paginate(page=2, per_page=20)
+```
+
+---
+
+## Aggregations
+
+Built-in aggregation helpers:
+```py
+total_users = await User.count()
+max_age = await User.max("age")
+min_age = await User.min("age")
+avg_age = await User.avg("age")
+total_balance = await User.sum("balance")
+```
+
+---
+
+## Bulk Operations
+
+#### Bulk Create
+```py
+users = await User.bulk_create([
+    {"username": "alice", "email": "alice@example.com"},
+    {"username": "bob", "email": "bob@example.com"}
+])
+```
+
+#### Get or Create
+```py
+user, created = await User.get_or_create(username="john", defaults={"email": "john@example.com"})
+```
+
+#### Update or Create
+```py
+user, created = await User.update_or_create(username="john", defaults={"email": "newjohn@example.com"})
+```
+
+---
+
+## Safe Raw Queries
+
+MakeFast allows raw SQL execution with strict validation and safety:
+```py
+results = await User.safe_raw_query("SELECT id, username FROM users WHERE status = %s", params=("active",))
+```
+
+By default, only **SELECT** queries are allowed unless you explicitly allow other operations.
+
+---
 
 ## Contributing
 
