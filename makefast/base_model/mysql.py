@@ -441,15 +441,23 @@ class QueryBuilder:
                     col = SecurityValidator.sanitize_identifier(column_alias)
                     self.select_columns.append(f"`{col}`")
             else:
-                # No alias, treat as regular column
-                if '.' in column_alias:
+                # Handle table.* format
+                if '.*' in column_alias:
+                    table = column_alias.replace('.*', '')
+                    table = SecurityValidator.sanitize_identifier(table)
+                    self.select_columns.append(f"`{table}`.*")
+                elif '.' in column_alias:
                     table, col = column_alias.split('.', 1)
                     table = SecurityValidator.sanitize_identifier(table)
                     col = SecurityValidator.sanitize_identifier(col)
                     self.select_columns.append(f"`{table}`.`{col}`")
                 else:
-                    col = SecurityValidator.sanitize_identifier(column_alias)
-                    self.select_columns.append(f"`{col}`")
+                    # Handle plain * or regular column
+                    if column_alias == '*':
+                        self.select_columns.append('*')
+                    else:
+                        col = SecurityValidator.sanitize_identifier(column_alias)
+                        self.select_columns.append(f"`{col}`")
         return self
 
     def _format_column_with_alias(self, column: str, alias: str) -> str:
