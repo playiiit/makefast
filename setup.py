@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setup(
     name='makefast',
-    version='2.1.3',
+    version='2.1.4',
     packages=find_packages(),
     include_package_data=True,
     package_data={
