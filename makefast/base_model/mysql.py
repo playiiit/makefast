@@ -493,7 +493,19 @@ class QueryBuilder:
             operator = "="
         
         # Validate inputs
-        table = SecurityValidator.sanitize_identifier(table)
+        if ' as ' in table.lower():
+            parts = table.lower().split(' as ')
+            if len(parts) == 2:
+                table_part = table[:table.lower().find(' as ')].strip()
+                alias_part = table[table.lower().find(' as ') + 4:].strip()
+                table_part = SecurityValidator.sanitize_identifier(table_part)
+                alias_part = SecurityValidator.sanitize_identifier(alias_part)
+                table = f"`{table_part}` AS `{alias_part}`"
+            else:
+                table = SecurityValidator.sanitize_identifier(table)
+        else:
+            table = SecurityValidator.sanitize_identifier(table)
+
         operator = SecurityValidator.sanitize_operator(operator)
         
         # Handle table.column format for both columns
@@ -510,7 +522,11 @@ class QueryBuilder:
         first_col = format_column(first_column)
         second_col = format_column(second_column)
         
-        join_condition = f"{join_type} `{table}` ON {first_col} {operator} {second_col}"
+        if ' as ' in table.lower():
+            join_condition = f"{join_type} {table} ON {first_col} {operator} {second_col}"
+        else:
+            join_condition = f"{join_type} `{table}` ON {first_col} {operator} {second_col}"
+
         self.join_conditions.append(join_condition)
         return self
 
