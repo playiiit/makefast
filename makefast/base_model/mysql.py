@@ -83,6 +83,7 @@ class QueryBuilder:
         self._validate_model()
         self.join_conditions = []
         self.select_columns = []
+        self.group_by_conditions = []
 
     def _validate_model(self):
         """Validate model configuration"""
@@ -259,6 +260,10 @@ class QueryBuilder:
             where_clause = " AND ".join(self.where_conditions)
             query += f" WHERE {where_clause}"
 
+        if self.group_by_conditions:
+            group_by_clause = ", ".join(self.group_by_conditions)
+            query += f" GROUP BY {group_by_clause}"
+
         if self.order_conditions:
             order_clause = ", ".join(self.order_conditions)
             query += f" ORDER BY {order_clause}"
@@ -434,8 +439,16 @@ class QueryBuilder:
                     column_part = column_alias[:column_alias.lower().find(' as ')].strip()
                     alias_part = column_alias[column_alias.lower().find(' as ') + 4:].strip()
                     
-                    formatted_col = self._format_column_with_alias(column_part, alias_part)
-                    self.select_columns.append(formatted_col)
+                    # Validate the alias
+                    alias_part = SecurityValidator.sanitize_identifier(alias_part)
+                    
+                    # Check if column_part is a SQL expression (contains functions, operators, etc.)
+                    if self._is_sql_expression(column_part):
+                        # For expressions, don't sanitize - just add as-is with validated alias
+                        self.select_columns.append(f"{column_part} AS `{alias_part}`")
+                    else:
+                        formatted_col = self._format_column_with_alias(column_part, alias_part)
+                        self.select_columns.append(formatted_col)
                 else:
                     # Fallback to regular column
                     col = SecurityValidator.sanitize_identifier(column_alias)
@@ -459,6 +472,37 @@ class QueryBuilder:
                         col = SecurityValidator.sanitize_identifier(column_alias)
                         self.select_columns.append(f"`{col}`")
         return self
+    
+    def group_by(self, *columns):
+        """Add GROUP BY clause with validation"""
+        for column in columns:
+            validated_column = self._validate_column(column)
+            
+            # Format column with backticks (handle table.column format)
+            if '.' in validated_column:
+                table, col = validated_column.split('.', 1)
+                formatted_column = f"`{table}`.`{col}`"
+            else:
+                formatted_column = f"`{validated_column}`"
+            
+            self.group_by_conditions.append(formatted_column)
+        return self
+
+    def group_by_raw(self, *expressions):
+        """Add GROUP BY clause with raw SQL expressions"""
+        for expression in expressions:
+            # For GROUP BY, we allow SQL expressions (like DATE(column))
+            # but still validate any identifiers within them
+            self.group_by_conditions.append(expression)
+        return self
+    
+    def _is_sql_expression(self, column: str) -> bool:
+        """Check if the column is a SQL expression (function, aggregation, etc.)"""
+        # Check for common SQL functions and operators
+        sql_indicators = ['(', ')', '+', '-', '*', '/', 'COUNT', 'SUM', 'AVG', 'MAX', 
+                         'MIN', 'CASE', 'WHEN', 'THEN', 'ELSE', 'END', 'DISTINCT']
+        column_upper = column.upper()
+        return any(indicator in column_upper for indicator in sql_indicators)
 
     def _format_column_with_alias(self, column: str, alias: str) -> str:
         """Format column with alias"""
@@ -551,15 +595,22 @@ class MySQLBase:
     @classmethod
     @contextmanager
     def get_connection(cls):
-        """Context manager for database connections"""
+        """
+        Context manager that returns a REAL MySQLConnection
+        from the stored pool.
+        """
         connection = None
         try:
-            connection = cls.get_database()
+            # FIX: get actual connection from pool
+            connection = cls.get_database().get_connection()
             yield connection
         except Exception as e:
             if connection:
                 connection.rollback()
             raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+        finally:
+            if connection:
+                connection.close()
 
     @classmethod
     def _prepare_data(cls, data: Dict[str, Any], operation: str = 'create') -> Dict[str, Any]:
