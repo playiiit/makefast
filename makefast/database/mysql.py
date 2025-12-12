@@ -42,7 +42,6 @@ class MySQLDatabaseInit:
             port=int(os.getenv("DB_PORT", 3306)),
             connect_timeout=30,
             autocommit=True,
-            pool_overflow=5,
         )
 
     # =================================================
