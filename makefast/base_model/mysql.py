@@ -601,8 +601,16 @@ class MySQLBase:
         """
         connection = None
         try:
-            # FIX: get actual connection from pool
+            # Get actual connection from pool
             connection = cls.get_database().get_connection()
+            
+            # Validate connection is alive before use
+            if not connection.is_connected():
+                connection.reconnect(attempts=3, delay=1)
+            else:
+                # Ping to ensure connection is still valid
+                connection.ping(reconnect=True, attempts=3, delay=1)
+            
             yield connection
         except Exception as e:
             if connection:

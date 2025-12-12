@@ -34,11 +34,15 @@ class MySQLDatabaseInit:
         return pooling.MySQLConnectionPool(
             pool_name="main_pool",
             pool_size=10,
+            pool_reset_session=True,
             host=os.getenv("DB_HOST"),
             user=os.getenv("DB_USERNAME"),
             password=os.getenv("DB_PASSWORD"),
             database=os.getenv("DB_DATABASE"),
-            port=int(os.getenv("DB_PORT", 3306))
+            port=int(os.getenv("DB_PORT", 3306)),
+            connect_timeout=30,
+            autocommit=True,
+            pool_overflow=5,
         )
 
     # =================================================
