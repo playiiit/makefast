@@ -5,3 +5,5 @@ from .create_scheme import CreateSchema
 from .create_enum import CreateEnum
 from .project_init import ProjectInit
 from .execute_migrations import ExecuteMigrations
+from .create_request import CreateRequest
+from .create_resource import CreateResource

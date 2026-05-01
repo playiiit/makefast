@@ -7,19 +7,31 @@
 
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Version](https://img.shields.io/badge/version-2.3.0-green.svg)](https://pypi.org/project/makefast/)
 
-Welcome to MakeFast, a FastAPI CLI library designed to streamline your development workflow. With MakeFast, you can efficiently manage your projects, and focus on writing high-quality code.
+Welcome to MakeFast, a FastAPI CLI library designed to streamline your development workflow — inspired by Laravel's elegant developer experience. With MakeFast, you can scaffold routes, models, requests, resources, migrations, and more, so you can focus on writing high-quality business logic.
 
 ## Table of Contents
 
 - [Installation](#installation)
-- [Quick Start](#quick-start)
 - [Commands](#commands)
   - [Project Creation](#project-creation)
   - [Route Generation](#route-generation)
   - [Model Generation](#model-generation)
   - [Schema Generation](#schema-generation)
   - [Enum Generation](#enum-generation)
+  - [Request Generation](#request-generation)
+  - [Resource Generation](#resource-generation)
+  - [Migration Generation](#migration-generation)
+- [Form Requests](#form-requests)
+  - [Defining Rules](#defining-rules)
+  - [Available Rules](#available-rules)
+  - [Custom Messages](#custom-messages)
+  - [Using in Routes](#using-in-routes)
+- [API Resources](#api-resources)
+  - [Single Resource](#single-resource)
+  - [Resource Collection](#resource-collection)
+  - [Pagination with Resources](#pagination-with-resources)
 - [Database Configuration](#database-configuration)
   - [MySQL](#mysql)
   - [MongoDB](#mongodb)
@@ -33,6 +45,7 @@ Welcome to MakeFast, a FastAPI CLI library designed to streamline your developme
   - [Aggregations](#aggregations)
   - [Bulk Operations](#bulk-operations)
   - [Safe Raw Queries](#safe-raw-queries)
+- [Project Structure](#project-structure)
 - [Contributing](#contributing)
 - [License](#license)
 
@@ -44,23 +57,25 @@ To install MakeFast, simply run the following command in your terminal:
 pip install makefast
 ```
 
-After the run this command to make the project template:
+After installation, run this command to generate the project template:
 
 ```shell
 makefast init
 ```
 
-Finally, run the:
+Install the project dependencies:
 
 ```shell
 pip install -r requirements.txt
 ```
 
-To run the project, you can run the uvicorn command:
+Run the development server:
 
 ```shell
 uvicorn main:app --port 8000 --reload
 ```
+
+---
 
 ## Commands
 
@@ -94,15 +109,242 @@ uvicorn main:app --port 8000 --reload
 | -------------------------------- | -------------------- | ------------ |
 | `makefast create-enum ENUM_NAME` | Generates a new enum | `--type str` |
 
+#### Request Generation
+
+Generates a Laravel-style `FormRequest` validation class under `app/requests/`.
+
+| Command                                | Description                         | Options |
+| -------------------------------------- | ----------------------------------- | ------- |
+| `makefast create_request REQUEST_NAME` | Generates a new form request class  |         |
+
+```shell
+makefast create_request StoreUserRequest
+# → app/requests/store_user_request.py
+```
+
+#### Resource Generation
+
+Generates a Laravel-style `Resource` or `ResourceCollection` class under `app/resources/`.
+
+| Command                                          | Description                             | Options             |
+| ------------------------------------------------ | --------------------------------------- | ------------------- |
+| `makefast create_resource RESOURCE_NAME`         | Generates a new API resource class      |                     |
+| `makefast create_resource RESOURCE_NAME -c`      | Also generates a ResourceCollection     | `--collection / -c` |
+
+```shell
+makefast create_resource User
+# → app/resources/user.py
+
+makefast create_resource User --collection
+# → app/resources/user.py + app/resources/user_collection.py
+```
+
+#### Migration Generation
+
+| Command                                    | Description                |
+| ------------------------------------------ | -------------------------- |
+| `makefast create_migration MIGRATION_NAME` | Generates a new migration  |
+| `makefast migrate`                         | Runs all pending migrations |
+
+---
+
+## Form Requests
+
+Form Requests provide a clean, reusable way to validate incoming HTTP data — just like Laravel's `FormRequest`.
+
+### Defining Rules
+
+```python
+# app/requests/store_user_request.py
+from makefast.http import FormRequest
+from typing import Any, Dict
+
+class StoreUserRequest(FormRequest):
+
+    def authorize(self) -> bool:
+        # Return False to reject unauthorized requests (raises 403)
+        return True
+
+    def rules(self) -> Dict[str, Any]:
+        return {
+            "name":     ["required", "string", "min:2", "max:100"],
+            "email":    ["required", "email"],
+            "password": ["required", "string", "min:8", "confirmed"],
+            "age":      ["nullable", "integer", "min:0"],
+            "role":     ["required", "in:admin,user,guest"],
+        }
+```
+
+### Available Rules
+
+| Rule              | Example               | Description                                              |
+| ----------------- | --------------------- | -------------------------------------------------------- |
+| `required`        | `"required"`          | Field must be present and non-empty                      |
+| `nullable`        | `"nullable"`          | Field may be absent or `None`                            |
+| `string`          | `"string"`            | Must be a `str`                                          |
+| `integer` / `int` | `"integer"`           | Must be an `int`                                         |
+| `numeric`         | `"numeric"`           | Must be `int` or `float`                                 |
+| `boolean`         | `"boolean"`           | Must be `bool`                                           |
+| `email`           | `"email"`             | Must match a valid email pattern                         |
+| `min:<n>`         | `"min:3"`             | Min length (strings) or min value (numbers)              |
+| `max:<n>`         | `"max:255"`           | Max length (strings) or max value (numbers)              |
+| `in:<a,b,c>`      | `"in:admin,user"`     | Value must be one of the listed options                  |
+| `not_in:<a,b,c>`  | `"not_in:banned"`     | Value must NOT be one of the listed options              |
+| `regex:<pattern>` | `"regex:^[A-Z]"`      | Must match the given regex pattern                       |
+| `confirmed`       | `"confirmed"`         | Must equal `{field}_confirmation` in the request body    |
+
+### Custom Messages
+
+```python
+def messages(self) -> Dict[str, str]:
+    return {
+        "name.required":  "Please tell us your name.",
+        "email.email":    "Please use a valid email address.",
+        "password.min":   "Password must be at least 8 characters.",
+    }
+```
+
+### Using in Routes
+
+Use the request class as a FastAPI dependency via `Depends`:
+
+```python
+from fastapi import APIRouter, Depends
+from app.requests.store_user_request import StoreUserRequest
+
+router = APIRouter()
+
+@router.post("/users")
+async def store(req: StoreUserRequest = Depends(StoreUserRequest.from_request)):
+    # req.validated() → only fields that passed validation
+    data = req.validated()
+    user = await User.create(**data)
+    return {"message": "User created", "user": user}
+```
+
+If validation fails, a `422 Unprocessable Entity` response is returned automatically with detailed error messages. If `authorize()` returns `False`, a `403 Forbidden` is raised.
+
+---
+
+## API Resources
+
+Resources provide a consistent way to transform your model data before returning it from your routes — like Laravel's API Resources.
+
+### Single Resource
+
+```python
+# app/resources/user.py
+from makefast.http import Resource
+from typing import Any, Dict
+
+class UserResource(Resource):
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "id":         self.data["id"],
+            "name":       self.data["name"],
+            "email":      self.data["email"],
+            "created_at": str(self.data.get("created_at", "")),
+        }
+```
+
+Use in a route:
+
+```python
+from app.resources.user import UserResource
+
+@router.get("/users/{id}")
+async def show(id: int):
+    user = await User.find(id)
+    return UserResource(user).response()
+    # → {"data": {"id": 1, "name": "Alice", "email": "..."}}
+```
+
+**Fluent modifiers:**
+
+```python
+# Remove the "data" wrapper
+UserResource(user).without_wrapping().response()
+# → {"id": 1, "name": "Alice", ...}
+
+# Use a custom wrapper key
+UserResource(user).wrap("user").response()
+# → {"user": {"id": 1, ...}}
+
+# Attach extra metadata
+UserResource(user).with_meta({"token": jwt_token}).response()
+# → {"data": {...}, "token": "..."}
+```
+
+### Resource Collection
+
+```python
+# app/resources/user_collection.py
+from makefast.http import ResourceCollection
+from app.resources.user import UserResource
+
+class UserCollection(ResourceCollection):
+    resource_class = UserResource
+```
+
+Use in a route:
+
+```python
+from app.resources.user_collection import UserCollection
+
+@router.get("/users")
+async def index():
+    users = await User.all()
+    return UserCollection(users).response()
+    # → {"data": [{...}, {...}]}
+```
+
+**Inline factory** (no subclassing needed):
+
+```python
+from makefast.http import ResourceCollection
+from app.resources.user import UserResource
+
+return ResourceCollection.of(UserResource, users).response()
+```
+
+### Pagination with Resources
+
+```python
+@router.get("/users")
+async def index(page: int = 1):
+    # Paginate with conditions using QueryBuilder
+    result = await User.query().where("active", 1).order_by("name").paginate(page=page, per_page=15)
+
+    return UserCollection(result["data"]).with_pagination(result).response()
+```
+
+Response shape:
+
+```json
+{
+  "data": [...],
+  "pagination": {
+    "total": 42,
+    "per_page": 15,
+    "current_page": 1,
+    "last_page": 3,
+    "from": 1,
+    "to": 15
+  }
+}
+```
+
+---
+
 ## Database Configuration
 
-Makefast provide the easiest way to configure the database and using them. By default makefast has 2 databases which is MySql and MongoDB.
+MakeFast provides the easiest way to configure and use a database. By default, MakeFast supports **MySQL** and **MongoDB**.
 
 ### MySQL
 
-To initiate MySQL, add below lines on `main.py` file as necessary.
+Add the following lines to `main.py`:
 
-```py
+```python
 from fastapi import FastAPI
 from makefast.database import MySQLDatabaseInit
 
@@ -111,11 +353,22 @@ app = FastAPI()
 MySQLDatabaseInit.init(app)
 ```
 
+Configure your `.env` file:
+
+```env
+DB_CONNECTION=mysql
+DB_HOST=localhost
+DB_PORT=3306
+DB_DATABASE=your_database
+DB_USERNAME=your_username
+DB_PASSWORD=your_password
+```
+
 ### MongoDB
 
-To initiate MongoDB, add below lines on `main.py` file as necessary.
+Add the following lines to `main.py`:
 
-```py
+```python
 from fastapi import FastAPI
 from makefast.database import MongoDBDatabaseInit
 
@@ -126,14 +379,14 @@ MongoDBDatabaseInit.init(app)
 
 ### Database CRUD operations
 
-Makefast offers default functions for CRUD operations. Before using these, you need to create a model that corresponds to the MySQL table or MongoDB collection.
+MakeFast offers built-in methods for CRUD operations. First, create a model that corresponds to your MySQL table or MongoDB collection.
 
 #### Create
 
-```py
+```python
 from app.models import User
 
-create_response = await User.create(**{
+user = await User.create(**{
     "username": "usertest",
     "email": "test@example.com",
     "password": "test123",
@@ -142,7 +395,7 @@ create_response = await User.create(**{
 
 #### Update
 
-```py
+```python
 await User.update(45, **{
     "name": "New name"
 })
@@ -150,19 +403,20 @@ await User.update(45, **{
 
 #### Find one
 
-```py
+```python
 await User.find(45)
+await User.find_or_fail(45)  # raises 404 if not found
 ```
 
 #### Find all
 
-```py
+```python
 await User.all()
 ```
 
 #### Delete
 
-```py
+```python
 await User.delete(45)
 ```
 
@@ -170,31 +424,49 @@ await User.delete(45)
 
 ## Advanced Query Builder
 
-MakeFast’s MySQL integration includes a powerful **QueryBuilder** for advanced queries with validation and safety.
+MakeFast's MySQL integration includes a powerful **QueryBuilder** for building advanced queries with full validation and SQL injection protection.
 
 #### Filtering
 
-```py
+```python
 # WHERE username = 'john'
 users = await User.query().where("username", "john").get()
 
 # WHERE age > 18 AND status = 'active'
 users = await User.query().where("age", ">", 18).where("status", "active").get()
+
+# WHERE IN / NOT IN
+users = await User.query().where_in("status", ["active", "pending"]).get()
+
+# WHERE IS NULL / IS NOT NULL
+users = await User.query().where_null("deleted_at").get()
+
+# WHERE BETWEEN
+users = await User.query().where_between("age", 18, 65).get()
+
+# WHERE LIKE
+users = await User.query().where_like("email", "%@gmail.com").get()
+
+# OR WHERE
+users = await User.query().where("role", "admin").or_where("role", "moderator").get()
 ```
 
 #### Joins
 
-```py
+```python
 # INNER JOIN
 results = await User.query().join("profiles", "users.id", "profiles.user_id").get()
 
 # LEFT JOIN
 results = await User.query().left_join("orders", "users.id", "orders.user_id").get()
+
+# RIGHT JOIN
+results = await User.query().right_join("departments", "users.dept_id", "departments.id").get()
 ```
 
 #### Select Specific Columns
 
-```py
+```python
 users = await User.query().select("id", "username", "email").get()
 
 # With alias
@@ -203,35 +475,83 @@ users = await User.query().select_raw("users.id as user_id", "profiles.bio as pr
 
 #### Ordering, Limit & Offset
 
-```py
+```python
 users = await User.query().order_by("created_at", "DESC").limit(10).offset(20).get()
+```
+
+#### Group By
+
+```python
+results = await User.query().select("role").group_by("role").get()
 ```
 
 #### First / First Or Fail
 
-```py
+```python
 user = await User.query().where("username", "john").first()
-user = await User.query().where("username", "john").first_or_fail()
+user = await User.query().where("username", "john").first_or_fail()  # raises 404
 ```
 
-#### Pagination
+#### Pagination (Chained)
 
-```py
-users_page = await User.paginate(page=2, per_page=20)
+Paginate any query, including those with joins, filters, and ordering:
+
+```python
+result = await User.query() \
+    .where("active", 1) \
+    .order_by("created_at", "DESC") \
+    .paginate(page=1, per_page=15)
+
+# result = {
+#   "data": [...],
+#   "total": 42,
+#   "per_page": 15,
+#   "current_page": 1,
+#   "last_page": 3,
+#   "from": 1,
+#   "to": 15
+# }
+```
+
+#### Simple Pagination (Class-level)
+
+```python
+result = await User.paginate(page=2, per_page=20)
+```
+
+#### Exists Check
+
+```python
+already_taken = await User.query().where("email", email).exists()
+if already_taken:
+    raise HTTPException(400, "Email already registered")
+```
+
+#### Chained Update & Delete
+
+```python
+# Update matching records
+rows_updated = await User.query().where("status", "inactive").update(status="archived")
+
+# Delete matching records (WHERE is required for safety)
+rows_deleted = await User.query().where("deleted_at", "<", cutoff_date).delete()
 ```
 
 ---
 
 ## Aggregations
 
-Built-in aggregation helpers:
+Built-in aggregation helpers on both the model and the query builder:
 
-```py
+```python
 total_users = await User.count()
-max_age = await User.max("age")
-min_age = await User.min("age")
-avg_age = await User.avg("age")
-total_balance = await User.sum("balance")
+max_age    = await User.max("age")
+min_age    = await User.min("age")
+avg_age    = await User.avg("age")
+total_bal  = await User.sum("balance")
+
+# With conditions
+active_count = await User.query().where("active", 1).count()
 ```
 
 ---
@@ -240,23 +560,29 @@ total_balance = await User.sum("balance")
 
 #### Bulk Create
 
-```py
+```python
 users = await User.bulk_create([
     {"username": "alice", "email": "alice@example.com"},
-    {"username": "bob", "email": "bob@example.com"}
+    {"username": "bob",   "email": "bob@example.com"},
 ])
 ```
 
 #### Get or Create
 
-```py
-user, created = await User.get_or_create(username="john", defaults={"email": "john@example.com"})
+```python
+user, created = await User.get_or_create(
+    username="john",
+    defaults={"email": "john@example.com"}
+)
 ```
 
 #### Update or Create
 
-```py
-user, created = await User.update_or_create(username="john", defaults={"email": "newjohn@example.com"})
+```python
+user, created = await User.update_or_create(
+    username="john",
+    defaults={"email": "newjohn@example.com"}
+)
 ```
 
 ---
@@ -265,11 +591,46 @@ user, created = await User.update_or_create(username="john", defaults={"email": 
 
 MakeFast allows raw SQL execution with strict validation and safety:
 
-```py
-results = await User.safe_raw_query("SELECT id, username FROM users WHERE status = %s", params=("active",))
+```python
+results = await User.safe_raw_query(
+    "SELECT id, username FROM users WHERE status = %s",
+    params=("active",)
+)
 ```
 
-By default, only **SELECT** queries are allowed unless you explicitly allow other operations.
+By default, only **SELECT** queries are allowed unless you explicitly pass `allowed_operations`:
+
+```python
+results = await User.safe_raw_query(
+    "UPDATE users SET status = %s WHERE id = %s",
+    params=("active", 1),
+    allowed_operations={"UPDATE"}
+)
+```
+
+---
+
+## Project Structure
+
+After running `makefast init`, your project will have the following structure:
+
+```
+app/
+├── dependencies/
+│   └── response_handler.py
+├── enums/
+├── migrations/
+├── models/
+├── requests/          ← Form Request classes
+├── resources/         ← API Resource & Collection classes
+├── routes/
+└── schemas/
+.makefast/
+└── executed_migrations.txt
+main.py
+.env
+requirements.txt
+```
 
 ---
 

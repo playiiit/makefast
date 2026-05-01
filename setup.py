@@ -5,11 +5,16 @@ with open("README.md", "r") as fh:
 
 setup(
     name='makefast',
-    version='2.2.4',
+    version='2.3.0',
     packages=find_packages(),
     include_package_data=True,
     package_data={
-        'assets': ['app/**/*'],
+        'makefast': [
+            'app/**/*',
+            'app/requests/__init__.py',
+            'app/resources/__init__.py',
+            'http/*.py',
+        ],
     },
     install_requires=[
         'typer~=0.12.5',
