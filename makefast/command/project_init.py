@@ -41,15 +41,11 @@ class ProjectInit:
             shutil.copytree(app_template_dir, target_app_dir)
             print("\nProject structure created successfully!")
 
-            # Create main.py and requirements.txt
+            # Create main.py, requirements.txt, .env, and .gitignore
             cls.create_main_file(destination)
             cls.create_requirements_file(destination)
             cls.create_env_file(destination)
-
-            # Create .env file
-            env_file = destination / '.env'
-            env_file.touch()
-            print("Created .env file")
+            cls.create_gitignore_file(destination)
 
             # Print the created structure
             print("\nCreated project structure:")
@@ -77,6 +73,13 @@ DB_DATABASE=
 DB_USERNAME=
 DB_PASSWORD=
 DB_CLUSTER=
+
+MAIL_HOST=localhost
+MAIL_PORT=1025
+MAIL_USERNAME=
+MAIL_PASSWORD=
+MAIL_FROM_ADDRESS=hello@example.com
+MAIL_FROM_NAME="Makefast App"
 '''
         env_file = destination / '.env'
         with open(env_file, 'w') as f:
@@ -106,29 +109,9 @@ app.add_middleware(
     allow_headers=["*"],  # Adjust as needed
 )
 
-def register_routes():
-    """
-    Dynamically register API routes from routes modules.
+from app.routes.api import router as api_router
 
-    This function scans the 'app/routes' directory for Python files.
-    It imports each module and, if the module
-    has a 'router' attribute, includes that router in the main FastAPI app
-    with the '/api' prefix.
-
-    The function assumes:
-    - All controller files are in the 'app/routes' directory
-    - Controller files end with '_route.py'
-    - routes define their routes using a 'router' object
-    """
-    routes_dir = "app/routes"
-    for filename in os.listdir(routes_dir):
-        if filename.endswith(".py") and not filename.startswith("__"):
-            module_name = f"app.routes.{filename[:-3]}"
-            module = importlib.import_module(module_name)
-            if hasattr(module, "router"):
-                app.include_router(module.router, prefix="/api")
-
-register_routes()
+app.include_router(api_router, prefix="/api")
 '''
 
         main_file = destination / 'main.py'
@@ -157,3 +140,37 @@ makefast
         with open(req_file, 'w') as f:
             f.write(requirements)
         print("Created requirements.txt")
+
+    @classmethod
+    def create_gitignore_file(cls, destination):
+        """
+        Create a .gitignore file with standard Python ignore rules
+        """
+        gitignore_content = """# Environments
+.env
+.venv/
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyc
+
+# IDEs
+.idea/
+.vscode/
+
+# Distribution / packaging
+dist/
+build/
+*.egg-info/
+"""
+        gitignore_file = destination / '.gitignore'
+        with open(gitignore_file, 'w') as f:
+            f.write(gitignore_content)
+        print("Created .gitignore file")

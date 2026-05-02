@@ -7,7 +7,7 @@
 
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Version](https://img.shields.io/badge/version-2.3.0-green.svg)](https://pypi.org/project/makefast/)
+[![Version](https://img.shields.io/badge/version-2.4.0-green.svg)](https://pypi.org/project/makefast/)
 
 Welcome to MakeFast, a FastAPI CLI library designed to streamline your development workflow — inspired by Laravel's elegant developer experience. With MakeFast, you can scaffold routes, models, requests, resources, migrations, and more, so you can focus on writing high-quality business logic.
 
@@ -16,13 +16,17 @@ Welcome to MakeFast, a FastAPI CLI library designed to streamline your developme
 - [Installation](#installation)
 - [Commands](#commands)
   - [Project Creation](#project-creation)
-  - [Route Generation](#route-generation)
+  - [Controller Generation](#controller-generation)
   - [Model Generation](#model-generation)
   - [Schema Generation](#schema-generation)
   - [Enum Generation](#enum-generation)
   - [Request Generation](#request-generation)
   - [Resource Generation](#resource-generation)
+  - [Mail Generation](#mail-generation)
   - [Migration Generation](#migration-generation)
+- [Routing & Middleware](#routing--middleware)
+  - [Defining Routes](#defining-routes)
+  - [Adding Route Middleware](#adding-route-middleware)
 - [Form Requests](#form-requests)
   - [Defining Rules](#defining-rules)
   - [Available Rules](#available-rules)
@@ -32,6 +36,9 @@ Welcome to MakeFast, a FastAPI CLI library designed to streamline your developme
   - [Single Resource](#single-resource)
   - [Resource Collection](#resource-collection)
   - [Pagination with Resources](#pagination-with-resources)
+- [Emails (Mailables)](#emails-mailables)
+  - [Creating Mailables](#creating-mailables)
+  - [Sending Emails](#sending-emails)
 - [Database Configuration](#database-configuration)
   - [MySQL](#mysql)
   - [MongoDB](#mongodb)
@@ -85,11 +92,13 @@ uvicorn main:app --port 8000 --reload
 | --------------- | ------------------------- | ------- |
 | `makefast init` | Initializes a new project |         |
 
-#### Route Generation
+#### Controller Generation
 
-| Command                            | Description           | Options                                                                                  |
-| ---------------------------------- | --------------------- | ---------------------------------------------------------------------------------------- |
-| `makefast create-route ROUTE_NAME` | Generates a new route | `--model MODEL_NAME`, `--request_scheme REQUEST_NAME`, `--response_scheme RESPONSE_NAME` |
+Generates a Laravel-style Controller class and automatically registers its routes in `app/routes/api.py`.
+
+| Command                                    | Description                | Options                                                                                  |
+| ------------------------------------------ | -------------------------- | ---------------------------------------------------------------------------------------- |
+| `makefast create_controller CONTROLLER_NAME` | Generates a new controller | `--model MODEL_NAME`, `--request_scheme REQUEST_NAME`, `--response_scheme RESPONSE_NAME` |
 
 #### Model Generation
 
@@ -115,10 +124,10 @@ Generates a Laravel-style `FormRequest` validation class under `app/requests/`.
 
 | Command                                | Description                         | Options |
 | -------------------------------------- | ----------------------------------- | ------- |
-| `makefast create_request REQUEST_NAME` | Generates a new form request class  |         |
+| `makefast create-request REQUEST_NAME` | Generates a new form request class  |         |
 
 ```shell
-makefast create_request StoreUserRequest
+makefast create-request StoreUserRequest
 # → app/requests/store_user_request.py
 ```
 
@@ -128,15 +137,29 @@ Generates a Laravel-style `Resource` or `ResourceCollection` class under `app/re
 
 | Command                                          | Description                             | Options             |
 | ------------------------------------------------ | --------------------------------------- | ------------------- |
-| `makefast create_resource RESOURCE_NAME`         | Generates a new API resource class      |                     |
-| `makefast create_resource RESOURCE_NAME -c`      | Also generates a ResourceCollection     | `--collection / -c` |
+| `makefast create-resource RESOURCE_NAME`         | Generates a new API resource class      |                     |
+| `makefast create-resource RESOURCE_NAME -c`      | Also generates a ResourceCollection     | `--collection / -c` |
 
 ```shell
-makefast create_resource User
+makefast create-resource User
 # → app/resources/user.py
 
-makefast create_resource User --collection
+makefast create-resource User --collection
 # → app/resources/user.py + app/resources/user_collection.py
+```
+
+#### Mail Generation
+
+Generates a Laravel-style `Mailable` class under `app/mail/` and its corresponding HTML template under `resources/views/emails/`.
+
+| Command                              | Description                               |
+| ------------------------------------ | ----------------------------------------- |
+| `makefast create-mail MAIL_NAME`     | Generates a new mailable & HTML template  |
+
+```shell
+makefast create-mail WelcomeEmail
+# → app/mail/welcome_email.py
+# → resources/views/emails/welcome-email.html
 ```
 
 #### Migration Generation
@@ -145,6 +168,48 @@ makefast create_resource User --collection
 | ------------------------------------------ | -------------------------- |
 | `makefast create_migration MIGRATION_NAME` | Generates a new migration  |
 | `makefast migrate`                         | Runs all pending migrations |
+
+---
+
+## Routing & Middleware
+
+Since MakeFast adopts a Laravel-style routing architecture, all routes are registered centrally in `app/routes/api.py`.
+
+### Defining Routes
+When you generate a controller via `makefast create_controller`, the route is automatically registered for you.
+
+```python
+# app/routes/api.py
+from fastapi import APIRouter
+from app.controllers.user_controller import UserController
+
+router = APIRouter()
+
+router.add_api_route(
+    path="/user", 
+    endpoint=UserController.index, 
+    methods=["GET"]
+)
+```
+
+### Adding Route Middleware
+In FastAPI, route-specific middleware is handled using the `Depends` dependency injection system. Because the `dependencies` parameter accepts a list, you can chain multiple middlewares to run in an exact sequence before your controller method is executed.
+
+```python
+from fastapi import Depends
+from app.dependencies.auth import verify_token
+from app.dependencies.roles import require_admin
+
+router.add_api_route(
+    path="/admin/dashboard", 
+    endpoint=AdminController.dashboard, 
+    methods=["GET"],
+    dependencies=[
+        Depends(verify_token),  # Runs first
+        Depends(require_admin)  # Runs second (only if first succeeds)
+    ]
+)
+```
 
 ---
 
@@ -332,6 +397,71 @@ Response shape:
     "to": 15
   }
 }
+```
+
+---
+
+## Emails (Mailables)
+
+MakeFast provides a Laravel-like mailing system using `Mailable` classes and Jinja2 HTML templates.
+
+### Creating Mailables
+
+Generate a Mailable using the CLI:
+
+```shell
+makefast create-mail WelcomeEmail
+```
+
+This will create `app/mail/welcome_email.py` and an HTML template in `resources/views/emails/welcome-email.html`.
+
+In your `WelcomeEmail` class, define the view, data, and subject:
+
+```python
+# app/mail/welcome_email.py
+from makefast.mail import Mailable
+
+class WelcomeEmail(Mailable):
+    def __init__(self, data: dict = None):
+        super().__init__()
+        self.mail_data = data or {}
+
+    def build(self):
+        return (
+            self.view("emails.welcome-email")
+                .with_data(**self.mail_data)
+                .subject("Welcome to MakeFast!")
+        )
+```
+
+In your HTML template (`resources/views/emails/welcome-email.html`), you can use Jinja2 syntax to output the passed data:
+
+```html
+<!DOCTYPE html>
+<html>
+<body>
+    <h2>Welcome, {{ name }}!</h2>
+    <p>Thank you for joining us.</p>
+</body>
+</html>
+```
+
+### Sending Emails
+
+Use the `Mail` facade to send emails. MakeFast uses SMTP configurations defined in your `.env` file (e.g., `MAIL_HOST`, `MAIL_PORT`, `MAIL_USERNAME`, `MAIL_PASSWORD`, `MAIL_FROM_ADDRESS`, `MAIL_FROM_NAME`).
+
+```python
+from makefast.mail import Mail
+from app.mail.welcome_email import WelcomeEmail
+
+@router.post("/users")
+async def store():
+    # User creation logic...
+    
+    mailable = WelcomeEmail({"name": "Alice"})
+    Mail.to("alice@example.com").send(mailable)
+    
+    return {"message": "User created and email sent"}
 ```
 
 ---
@@ -616,6 +746,7 @@ After running `makefast init`, your project will have the following structure:
 
 ```
 app/
+├── controllers/       ← Controller classes
 ├── dependencies/
 │   └── response_handler.py
 ├── enums/
@@ -623,7 +754,7 @@ app/
 ├── models/
 ├── requests/          ← Form Request classes
 ├── resources/         ← API Resource & Collection classes
-├── routes/
+├── routes/            ← Route definitions (api.py)
 └── schemas/
 .makefast/
 └── executed_migrations.txt
