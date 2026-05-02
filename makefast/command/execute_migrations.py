@@ -2,6 +2,7 @@ import importlib.util
 import re
 import os
 import asyncio
+from pathlib import Path
 from typing import List, Set
 
 
@@ -11,7 +12,13 @@ class ExecuteMigrations:
         Initialize the migration runner.
         """
         self.migrations_dir = "app/migrations"
-        self.executed_file = "venv/Lib/site-packages/makefast/migration/executed_migrations.txt"
+
+        # Store migration state in the project root under .makefast/
+        # (avoids the fragile venv-path approach)
+        state_dir = Path(".makefast")
+        state_dir.mkdir(exist_ok=True)
+        self.executed_file = str(state_dir / "executed_migrations.txt")
+
         self.executed_migrations: Set[str] = self._load_executed_migrations()
 
     def _load_executed_migrations(self) -> Set[str]:

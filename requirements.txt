@@ -11,3 +11,4 @@ mysql-connector-python~=9.0.0
 starlette~=0.38.2
 wheel~=0.44.0
 twine~=5.1.1
+jinja2~=3.1.4

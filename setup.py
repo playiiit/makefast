@@ -1,15 +1,20 @@
 from setuptools import setup, find_packages
 
-with open("README.md", "r") as fh:
+with open("README.md", "r", encoding="utf-8") as fh:
     long_description = fh.read()
 
 setup(
     name='makefast',
-    version='2.2.4',
+    version='2.4.0',
     packages=find_packages(),
     include_package_data=True,
     package_data={
-        'assets': ['app/**/*'],
+        'makefast': [
+            'app/**/*',
+            'app/requests/__init__.py',
+            'app/resources/__init__.py',
+            'http/*.py',
+        ],
     },
     install_requires=[
         'typer~=0.12.5',
@@ -22,6 +27,8 @@ setup(
         'python-dotenv~=1.0.1',
         'mysql-connector-python~=9.0.0',
         'starlette~=0.38.2',
+        'fastapi>=0.100.0',
+        'jinja2~=3.1.4',
     ],
     entry_points={
         'console_scripts': [

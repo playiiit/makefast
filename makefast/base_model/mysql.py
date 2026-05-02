@@ -354,6 +354,42 @@ class QueryBuilder:
             finally:
                 cursor.close()
 
+    async def exists(self) -> bool:
+        """Check whether any rows match the current query conditions."""
+        return (await self.count()) > 0
+
+    async def paginate(self, page: int = 1, per_page: int = 15) -> Dict[str, Any]:
+        """Paginate the query results, respecting all applied WHERE/JOIN/ORDER conditions."""
+        if not isinstance(page, int) or page < 1:
+            raise HTTPException(status_code=400, detail="Page must be a positive integer")
+        if not isinstance(per_page, int) or per_page < 1 or per_page > 1000:
+            raise HTTPException(status_code=400, detail="Per page must be between 1 and 1000")
+
+        offset = (page - 1) * per_page
+        total = await self.count()
+
+        # Save and temporarily override limit/offset
+        original_limit = self.limit_count
+        original_offset = self.offset_count
+        self.limit_count = per_page
+        self.offset_count = offset
+
+        data = await self.get()
+
+        # Restore
+        self.limit_count = original_limit
+        self.offset_count = original_offset
+
+        return {
+            'data': data,
+            'total': total,
+            'per_page': per_page,
+            'current_page': page,
+            'last_page': max(1, (total + per_page - 1) // per_page),
+            'from': offset + 1 if data else 0,
+            'to': offset + len(data) if data else 0,
+        }
+
     async def update(self, **kwargs) -> int:
         """Update records matching the query"""
         if not kwargs:
@@ -609,7 +645,7 @@ class MySQLBase:
                 connection.reconnect(attempts=3, delay=1)
             else:
                 # Ping to ensure connection is still valid
-                connection.ping(reconnect=True, attempts=3, delay=1)
+                connection.ping(reconnect=True)
             
             yield connection
         except Exception as e:
