@@ -8,14 +8,36 @@ class CreateResource:
 
     @classmethod
     def execute(cls, name: str, collection: bool = False) -> None:
-        resources_dir = "app/resources"
+        # Support path-style names like "v1/UserResource" or "Admin/PostResource"
+        parts = name.replace("\\", "/").split("/")
+        path_prefix = "/".join(parts[:-1])  # e.g. "v1" or ""
+        raw_name = parts[-1]               # e.g. "UserResource"
+
+        # Build the target directory, honouring any path prefix
+        if path_prefix:
+            resources_dir = os.path.join("app", "resources", *path_prefix.split("/"))
+        else:
+            resources_dir = "app/resources"
+
         if not os.path.exists(resources_dir):
             os.makedirs(resources_dir)
 
+        # Ensure every directory in the chain has an __init__.py
+        chain = os.path.join("app", "resources")
+        if not os.path.exists(chain):
+            os.makedirs(chain, exist_ok=True)
+        if not os.path.exists(os.path.join(chain, "__init__.py")):
+            open(os.path.join(chain, "__init__.py"), "w").close()
+        for part in (path_prefix.split("/") if path_prefix else []):
+            chain = os.path.join(chain, part)
+            init_in_chain = os.path.join(chain, "__init__.py")
+            if not os.path.exists(init_in_chain):
+                open(init_in_chain, "w").close()
+
         if collection:
-            cls._create_collection(name, resources_dir)
+            cls._create_collection(raw_name, resources_dir)
         else:
-            cls._create_resource(name, resources_dir)
+            cls._create_resource(raw_name, resources_dir)
 
     # ------------------------------------------------------------------
     # Single Resource

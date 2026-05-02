@@ -8,14 +8,21 @@ from .create_scheme import CreateSchema
 class CreateController:
     @staticmethod
     def execute(name, model, request_scheme, response_scheme):
-        if name.lower().endswith("controller"):
-            base_name = name[:-10]
+        # Support path-style names like "v1/TestController" or "Admin/UserController"
+        # Split on both forward and back slashes
+        parts = name.replace("\\", "/").split("/")
+        path_prefix = "/".join(parts[:-1])   # e.g. "v1" or ""
+        raw_name = parts[-1]                  # e.g. "TestController"
+
+        if raw_name.lower().endswith("controller"):
+            base_name = raw_name[:-10]
         else:
-            base_name = name
+            base_name = raw_name
 
         class_name = f"{generate_class_name(base_name.capitalize())}Controller"
         file_name = f"{convert_to_snake_case(base_name)}_controller"
         route_path = f"/{convert_to_hyphen(base_name.lower())}"
+
         # Create scheme only once if request and response schemas are the same
         if request_scheme == response_scheme and request_scheme is not None:
             CreateSchema.execute(request_scheme)
@@ -29,19 +36,41 @@ class CreateController:
                 CreateSchema.execute(response_scheme)
 
         controller_template = CreateController.get_template(class_name)
-        
-        controller_dir = "app/controllers"
+
+        # Build the target directory, honouring any path prefix
+        if path_prefix:
+            controller_dir = os.path.join("app", "controllers", *path_prefix.split("/"))
+        else:
+            controller_dir = "app/controllers"
+
         if not os.path.exists(controller_dir):
             os.makedirs(controller_dir, exist_ok=True)
-            with open(os.path.join(controller_dir, "__init__.py"), "w") as f:
-                f.write("")
 
-        with open(f"{controller_dir}/{file_name}.py", "w") as f:
+        # Ensure every directory in the chain has an __init__.py
+        chain = os.path.join("app", "controllers")
+        if not os.path.exists(chain):
+            os.makedirs(chain, exist_ok=True)
+        if not os.path.exists(os.path.join(chain, "__init__.py")):
+            open(os.path.join(chain, "__init__.py"), "w").close()
+        for part in (path_prefix.split("/") if path_prefix else []):
+            chain = os.path.join(chain, part)
+            init_in_chain = os.path.join(chain, "__init__.py")
+            if not os.path.exists(init_in_chain):
+                open(init_in_chain, "w").close()
+
+        with open(os.path.join(controller_dir, f"{file_name}.py"), "w") as f:
             f.write(controller_template)
 
-        init_file_path = f"{controller_dir}/__init__.py"
+        init_file_path = os.path.join(controller_dir, "__init__.py")
         import_statement = f"from .{file_name} import {class_name}\n"
         update_init_file(file_path=init_file_path, statement=import_statement)
+
+        # Build dotted module path for the api.py import
+        if path_prefix:
+            dotted_prefix = path_prefix.replace("/", ".")
+            module_path = f"app.controllers.{dotted_prefix}.{file_name}"
+        else:
+            module_path = f"app.controllers.{file_name}"
 
         # Update the api.py routes file
         api_file_path = "app/routes/api.py"
@@ -49,22 +78,22 @@ class CreateController:
             with open(api_file_path, "r") as f:
                 content = f.read()
 
-            import_stmt = f"from app.controllers.{file_name} import {class_name}\n"
+            import_stmt = f"from {module_path} import {class_name}\n"
             if import_stmt not in content:
                 lines = content.split('\n')
                 last_import_idx = -1
                 for i, line in enumerate(lines):
                     if line.startswith("from ") or line.startswith("import "):
                         last_import_idx = i
-                
+
                 if last_import_idx != -1:
                     lines.insert(last_import_idx + 1, import_stmt.strip())
                 else:
                     lines.insert(0, import_stmt.strip())
-                
+
                 route_method = "POST" if request_scheme else "GET"
                 route_stmt = f'\nrouter.add_api_route(\n    path="{route_path}", \n    endpoint={class_name}.index, \n    methods=["{route_method}"]\n)\n'
-                
+
                 content = '\n'.join(lines) + route_stmt
                 with open(api_file_path, "w") as f:
                     f.write(content)

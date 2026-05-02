@@ -5,19 +5,38 @@ from makefast.utils import generate_class_name, convert_to_snake_case, convert_t
 class CreateMail:
     @staticmethod
     def execute(name: str):
-        class_name = generate_class_name(name)
-        file_name = convert_to_snake_case(name)
-        view_name = convert_to_hyphen(name)
-        
+        # Support path-style names like "Notifications/WelcomeMail"
+        parts = name.replace("\\", "/").split("/")
+        path_prefix = "/".join(parts[:-1])  # e.g. "Notifications" or ""
+        raw_name = parts[-1]               # e.g. "WelcomeMail"
+
+        class_name = generate_class_name(raw_name)
+        file_name = convert_to_snake_case(raw_name)
+        view_name = convert_to_hyphen(raw_name)
+
         # 1. Create Mailable class
-        mail_dir = "app/mail"
+        if path_prefix:
+            mail_dir = os.path.join("app", "mail", *path_prefix.split("/"))
+        else:
+            mail_dir = "app/mail"
+
         if not os.path.exists(mail_dir):
             os.makedirs(mail_dir, exist_ok=True)
-            with open(os.path.join(mail_dir, "__init__.py"), "w") as f:
-                f.write("")
-                
-        mail_file_path = f"{mail_dir}/{file_name}.py"
-        
+
+        # Ensure every directory in the chain has an __init__.py
+        chain = os.path.join("app", "mail")
+        if not os.path.exists(chain):
+            os.makedirs(chain, exist_ok=True)
+        if not os.path.exists(os.path.join(chain, "__init__.py")):
+            open(os.path.join(chain, "__init__.py"), "w").close()
+        for part in (path_prefix.split("/") if path_prefix else []):
+            chain = os.path.join(chain, part)
+            init_in_chain = os.path.join(chain, "__init__.py")
+            if not os.path.exists(init_in_chain):
+                open(init_in_chain, "w").close()
+
+        mail_file_path = os.path.join(mail_dir, f"{file_name}.py")
+
         mail_template = f"""from makefast.mail import Mailable
 
 class {class_name}(Mailable):
