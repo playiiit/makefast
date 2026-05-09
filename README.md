@@ -96,9 +96,9 @@ uvicorn main:app --port 8000 --reload
 
 Generates a Laravel-style Controller class and automatically registers its routes in `app/routes/api.py`.
 
-| Command                                    | Description                | Options                                                                                  |
-| ------------------------------------------ | -------------------------- | ---------------------------------------------------------------------------------------- |
-| `makefast create_controller CONTROLLER_NAME` | Generates a new controller | `--model MODEL_NAME`, `--request_scheme REQUEST_NAME`, `--response_scheme RESPONSE_NAME` |
+| Command                                      | Description                | Options                                                                                  |
+| -------------------------------------------- | -------------------------- | ---------------------------------------------------------------------------------------- |
+| `makefast create-controller CONTROLLER_NAME` | Generates a new controller | `--model MODEL_NAME`, `--request-scheme REQUEST_NAME`, `--response-scheme RESPONSE_NAME` |
 
 #### Model Generation
 
@@ -122,9 +122,9 @@ Generates a Laravel-style Controller class and automatically registers its route
 
 Generates a Laravel-style `FormRequest` validation class under `app/requests/`.
 
-| Command                                | Description                         | Options |
-| -------------------------------------- | ----------------------------------- | ------- |
-| `makefast create-request REQUEST_NAME` | Generates a new form request class  |         |
+| Command                                | Description                        | Options |
+| -------------------------------------- | ---------------------------------- | ------- |
+| `makefast create-request REQUEST_NAME` | Generates a new form request class |         |
 
 ```shell
 makefast create-request StoreUserRequest
@@ -135,10 +135,10 @@ makefast create-request StoreUserRequest
 
 Generates a Laravel-style `Resource` or `ResourceCollection` class under `app/resources/`.
 
-| Command                                          | Description                             | Options             |
-| ------------------------------------------------ | --------------------------------------- | ------------------- |
-| `makefast create-resource RESOURCE_NAME`         | Generates a new API resource class      |                     |
-| `makefast create-resource RESOURCE_NAME -c`      | Also generates a ResourceCollection     | `--collection / -c` |
+| Command                                     | Description                         | Options             |
+| ------------------------------------------- | ----------------------------------- | ------------------- |
+| `makefast create-resource RESOURCE_NAME`    | Generates a new API resource class  |                     |
+| `makefast create-resource RESOURCE_NAME -c` | Also generates a ResourceCollection | `--collection / -c` |
 
 ```shell
 makefast create-resource User
@@ -152,9 +152,9 @@ makefast create-resource User --collection
 
 Generates a Laravel-style `Mailable` class under `app/mail/` and its corresponding HTML template under `resources/views/emails/`.
 
-| Command                              | Description                               |
-| ------------------------------------ | ----------------------------------------- |
-| `makefast create-mail MAIL_NAME`     | Generates a new mailable & HTML template  |
+| Command                          | Description                              |
+| -------------------------------- | ---------------------------------------- |
+| `makefast create-mail MAIL_NAME` | Generates a new mailable & HTML template |
 
 ```shell
 makefast create-mail WelcomeEmail
@@ -164,9 +164,9 @@ makefast create-mail WelcomeEmail
 
 #### Migration Generation
 
-| Command                                    | Description                |
-| ------------------------------------------ | -------------------------- |
-| `makefast create_migration MIGRATION_NAME` | Generates a new migration  |
+| Command                                    | Description                 |
+| ------------------------------------------ | --------------------------- |
+| `makefast create-migration MIGRATION_NAME` | Generates a new migration   |
 | `makefast migrate`                         | Runs all pending migrations |
 
 ---
@@ -176,7 +176,8 @@ makefast create-mail WelcomeEmail
 Since MakeFast adopts a Laravel-style routing architecture, all routes are registered centrally in `app/routes/api.py`.
 
 ### Defining Routes
-When you generate a controller via `makefast create_controller`, the route is automatically registered for you.
+
+When you generate a controller via `makefast create-controller`, the route is automatically registered for you.
 
 ```python
 # app/routes/api.py
@@ -186,13 +187,14 @@ from app.controllers.user_controller import UserController
 router = APIRouter()
 
 router.add_api_route(
-    path="/user", 
-    endpoint=UserController.index, 
+    path="/user",
+    endpoint=UserController.index,
     methods=["GET"]
 )
 ```
 
 ### Adding Route Middleware
+
 In FastAPI, route-specific middleware is handled using the `Depends` dependency injection system. Because the `dependencies` parameter accepts a list, you can chain multiple middlewares to run in an exact sequence before your controller method is executed.
 
 ```python
@@ -201,8 +203,8 @@ from app.dependencies.auth import verify_token
 from app.dependencies.roles import require_admin
 
 router.add_api_route(
-    path="/admin/dashboard", 
-    endpoint=AdminController.dashboard, 
+    path="/admin/dashboard",
+    endpoint=AdminController.dashboard,
     methods=["GET"],
     dependencies=[
         Depends(verify_token),  # Runs first
@@ -242,21 +244,21 @@ class StoreUserRequest(FormRequest):
 
 ### Available Rules
 
-| Rule              | Example               | Description                                              |
-| ----------------- | --------------------- | -------------------------------------------------------- |
-| `required`        | `"required"`          | Field must be present and non-empty                      |
-| `nullable`        | `"nullable"`          | Field may be absent or `None`                            |
-| `string`          | `"string"`            | Must be a `str`                                          |
-| `integer` / `int` | `"integer"`           | Must be an `int`                                         |
-| `numeric`         | `"numeric"`           | Must be `int` or `float`                                 |
-| `boolean`         | `"boolean"`           | Must be `bool`                                           |
-| `email`           | `"email"`             | Must match a valid email pattern                         |
-| `min:<n>`         | `"min:3"`             | Min length (strings) or min value (numbers)              |
-| `max:<n>`         | `"max:255"`           | Max length (strings) or max value (numbers)              |
-| `in:<a,b,c>`      | `"in:admin,user"`     | Value must be one of the listed options                  |
-| `not_in:<a,b,c>`  | `"not_in:banned"`     | Value must NOT be one of the listed options              |
-| `regex:<pattern>` | `"regex:^[A-Z]"`      | Must match the given regex pattern                       |
-| `confirmed`       | `"confirmed"`         | Must equal `{field}_confirmation` in the request body    |
+| Rule              | Example           | Description                                           |
+| ----------------- | ----------------- | ----------------------------------------------------- |
+| `required`        | `"required"`      | Field must be present and non-empty                   |
+| `nullable`        | `"nullable"`      | Field may be absent or `None`                         |
+| `string`          | `"string"`        | Must be a `str`                                       |
+| `integer` / `int` | `"integer"`       | Must be an `int`                                      |
+| `numeric`         | `"numeric"`       | Must be `int` or `float`                              |
+| `boolean`         | `"boolean"`       | Must be `bool`                                        |
+| `email`           | `"email"`         | Must match a valid email pattern                      |
+| `min:<n>`         | `"min:3"`         | Min length (strings) or min value (numbers)           |
+| `max:<n>`         | `"max:255"`       | Max length (strings) or max value (numbers)           |
+| `in:<a,b,c>`      | `"in:admin,user"` | Value must be one of the listed options               |
+| `not_in:<a,b,c>`  | `"not_in:banned"` | Value must NOT be one of the listed options           |
+| `regex:<pattern>` | `"regex:^[A-Z]"`  | Must match the given regex pattern                    |
+| `confirmed`       | `"confirmed"`     | Must equal `{field}_confirmation` in the request body |
 
 ### Custom Messages
 
@@ -439,10 +441,10 @@ In your HTML template (`resources/views/emails/welcome-email.html`), you can use
 ```html
 <!DOCTYPE html>
 <html>
-<body>
+  <body>
     <h2>Welcome, {{ name }}!</h2>
     <p>Thank you for joining us.</p>
-</body>
+  </body>
 </html>
 ```
 
@@ -457,10 +459,10 @@ from app.mail.welcome_email import WelcomeEmail
 @router.post("/users")
 async def store():
     # User creation logic...
-    
+
     mailable = WelcomeEmail({"name": "Alice"})
     Mail.to("alice@example.com").send(mailable)
-    
+
     return {"message": "User created and email sent"}
 ```
 

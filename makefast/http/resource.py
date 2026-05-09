@@ -3,6 +3,9 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional, Type
 
+from fastapi.encoders import jsonable_encoder
+
+
 
 class Resource(ABC):
     """
@@ -88,6 +91,21 @@ class Resource(ABC):
         Designed to be returned directly from FastAPI route handlers.
         """
         return self.to_response_dict()
+
+    def dict(self) -> Dict[str, Any]:
+        """
+        Alias for response() / to_response_dict().
+        Provides compatibility with Pydantic-style .dict() calls.
+        """
+        return self.response()
+
+    def serialize(self) -> Any:
+        """
+        Convert the resource into a JSON-compatible structure using FastAPI's jsonable_encoder.
+        Useful when you need to manually serialize before returning (e.g. for background tasks).
+        """
+        return jsonable_encoder(self.response())
+
 
     # ---------------------------------------------------------------
     # Magic helpers
@@ -216,6 +234,20 @@ class ResourceCollection:
     def response(self) -> Dict[str, Any]:
         """Return the full response envelope — return this directly from routes."""
         return self.to_response_dict()
+
+    def dict(self) -> Dict[str, Any]:
+        """
+        Alias for response() / to_response_dict().
+        Provides compatibility with Pydantic-style .dict() calls.
+        """
+        return self.response()
+
+    def serialize(self) -> Any:
+        """
+        Convert the resource collection into a JSON-compatible structure using FastAPI's jsonable_encoder.
+        """
+        return jsonable_encoder(self.response())
+
 
     def __len__(self) -> int:
         return len(self.collection)

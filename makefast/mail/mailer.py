@@ -34,11 +34,15 @@ class MailSender:
         env = Environment(loader=FileSystemLoader(template_dir))
         
         # Convert dot notation to path (e.g. emails.welcome -> emails/welcome.html)
+        if not mailable._view:
+            raise ValueError(f"Mailable {mailable.__class__.__name__} must have a view template defined. Did you call self.view() in build()?")
+            
         template_file = mailable._view.replace(".", "/") + ".html"
         
         try:
             template = env.get_template(template_file)
-            html_content = template.render(**mailable._data)
+            data = mailable._data if mailable._data is not None else {}
+            html_content = template.render(**data)
         except Exception as e:
             raise Exception(f"Failed to render email template '{template_file}': {e}")
 

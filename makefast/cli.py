@@ -20,16 +20,16 @@ def cli():
     pass
 
 
-@cli.command()
+@cli.command('create-controller')
 @click.argument('name')
 @click.option('--model', '-m')
-@click.option('--request_scheme', '-rqs')
-@click.option('--response_scheme', '-rss')
+@click.option('--request-scheme', '-rqs')
+@click.option('--response-scheme', '-rss')
 def create_controller(name, model, request_scheme, response_scheme):
     CreateController.execute(name, model, request_scheme, response_scheme)
 
 
-@cli.command()
+@cli.command('create-model')
 @click.argument('name')
 @click.option('--table', '-t')
 @click.option('--collection', '-c')
@@ -37,19 +37,19 @@ def create_model(name, table, collection):
     CreateModel.execute(name, table, collection)
 
 
-@cli.command()
+@cli.command('create-migration')
 @click.argument('name')
 def create_migration(name):
     CreateMigration.execute(name)
 
 
-@cli.command()
+@cli.command('create-schema')
 @click.argument('name')
 def create_schema(name):
     CreateSchema.execute(name)
 
 
-@cli.command()
+@cli.command('create-enum')
 @click.argument('name')
 @click.option('--type', '-t')
 def create_enum(name, type):
